@@ -10,6 +10,5 @@
 	"app_specific_url_scheme": "tg",
 	"premium_iap_product_id": "",
 	"enable_siri": false,
-	"enable_icloud": false,
-	"aps_environment": "disabled"
+	"enable_icloud": false
 }
