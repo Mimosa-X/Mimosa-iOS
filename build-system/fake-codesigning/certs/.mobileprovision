@@ -1,0 +1,5 @@
+<key>Entitlements</key>
+<dict>
+    <key>aps-environment</key>
+    <string>development</string>
+</dict>
