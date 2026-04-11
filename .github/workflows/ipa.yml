@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14   # ⚠️ 建议固定版本，别用 latest
+    runs-on: macos-14
 
     steps:
       - name: Checkout
@@ -28,30 +28,34 @@ jobs:
       - name: Prepare cache dir
         run: mkdir -p $HOME/telegram-bazel-cache
 
-      # ✅ 直接使用你的 appstore 配置
+      # ✅ 生成 Xcode 工程（修复参数问题）
       - name: Generate Xcode Project
         run: |
+          export IGNORE_XCODE_VERSION=1
+
           python3 build-system/Make/Make.py \
             --cacheDir="$HOME/telegram-bazel-cache" \
             generateProject \
             --configurationPath=build-system/appstore-configuration.json \
             --xcodeManagedCodesigning \
-            --disableProvisioningProfiles \
-            --overrideXcodeVersion
+            --disableProvisioningProfiles
 
-      - name: Build app (Release arm64)
+      # ✅ 构建 app
+      - name: Build app
         run: |
+          export IGNORE_XCODE_VERSION=1
+
           python3 build-system/Make/Make.py \
             --cacheDir="$HOME/telegram-bazel-cache" \
             build \
             --configurationPath=build-system/appstore-configuration.json \
             --xcodeManagedCodesigning \
             --disableProvisioningProfiles \
-            --overrideXcodeVersion \
             --buildNumber=100001 \
             --configuration=release_arm64
 
-      - name: Package IPA (unsigned)
+      # ✅ 打包 IPA（无签名）
+      - name: Package IPA
         run: |
           mkdir -p Payload
 
@@ -68,6 +72,7 @@ jobs:
 
           zip -r Telegram.ipa Payload
 
+      # ✅ 上传
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
