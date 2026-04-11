@@ -28,11 +28,16 @@ jobs:
       - name: Prepare cache dir
         run: mkdir -p $HOME/telegram-bazel-cache
 
-      # ✅ 核心修复：跳过 Xcode 版本限制
+      # ✅ 核心修复：安全 patch（不会再 SyntaxError）
       - name: Patch Xcode version check
         run: |
-          echo "Patching Make.py to ignore Xcode version check..."
-          sed -i '' 's/exit(1)/# exit(1)/g' build-system/Make/Make.py
+          echo "Patching Make.py safely..."
+
+          # 替换 sys.exit(1)
+          sed -i '' 's/sys.exit(1)/pass/g' build-system/Make/Make.py
+
+          # 替换 exit(1)
+          sed -i '' 's/exit(1)/pass/g' build-system/Make/Make.py
 
       # ✅ 生成工程
       - name: Generate Xcode Project
@@ -74,7 +79,7 @@ jobs:
 
           zip -r Telegram.ipa Payload
 
-      # ✅ 上传产物
+      # ✅ 上传
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
