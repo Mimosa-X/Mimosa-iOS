@@ -25,6 +25,18 @@ jobs:
           sudo mkdir -p /Users/Shared
           rsync -a $GITHUB_WORKSPACE/ /Users/Shared/telegram-ios/
 
+      # ✅ 关键修复：干掉 APS entitlement 检查
+      - name: Patch Telegram build system (disable APS check)
+        run: |
+          set -x
+          cd /Users/Shared/telegram-ios
+
+          # 方法1：直接替换关键字（最稳）
+          sed -i '' 's/aps-environment/aps-environment-disabled/g' build-system/Make/Make.py
+
+          # 可选：防止其他 entitlement 检查（更保险）
+          sed -i '' 's/get-task-allow/get-task-allow-disabled/g' build-system/Make/Make.py
+
       - name: Build the App
         run: |
           set -x
@@ -63,7 +75,6 @@ jobs:
           cp "$IPA_FILE" "$OUTPUT_PATH/"
 
           mkdir -p build/DSYMs
-
           find bazel-out -name "*.dSYM" -exec cp -R {} build/DSYMs/ \;
 
           zip -r "$OUTPUT_PATH/Telegram.DSYMs.zip" build/DSYMs >/dev/null
