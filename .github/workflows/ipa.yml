@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-14   # ⚠️ 建议固定版本，别用 latest
 
     steps:
       - name: Checkout
@@ -28,37 +28,24 @@ jobs:
       - name: Prepare cache dir
         run: mkdir -p $HOME/telegram-bazel-cache
 
-      - name: Generate minimal config
-        run: |
-          IDENTIFIER=$(openssl rand -hex 8)
-
-          cat > build-system/dev-config.json <<EOF
-          {
-            "bundle_id": "org.${IDENTIFIER}.Telegram",
-            "api_id": "YOUR_API_ID",
-            "api_hash": "YOUR_API_HASH",
-            "team_id": "",
-            "app_center_id": "",
-            "is_internal_build": true,
-            "is_appstore_build": false
-          }
-          EOF
-
-      - name: Generate Xcode Project (no codesign)
+      # ✅ 直接使用你的 appstore 配置
+      - name: Generate Xcode Project
         run: |
           python3 build-system/Make/Make.py \
             --cacheDir="$HOME/telegram-bazel-cache" \
             generateProject \
-            --configurationPath=build-system/dev-config.json \
+            --configurationPath=build-system/appstore-configuration.json \
+            --xcodeManagedCodesigning \
             --disableProvisioningProfiles \
             --overrideXcodeVersion
 
-      - name: Build app (Release arm64, no sign)
+      - name: Build app (Release arm64)
         run: |
           python3 build-system/Make/Make.py \
             --cacheDir="$HOME/telegram-bazel-cache" \
             build \
-            --configurationPath=build-system/dev-config.json \
+            --configurationPath=build-system/appstore-configuration.json \
+            --xcodeManagedCodesigning \
             --disableProvisioningProfiles \
             --overrideXcodeVersion \
             --buildNumber=100001 \
@@ -68,10 +55,14 @@ jobs:
         run: |
           mkdir -p Payload
 
-          # 查找生成的 .app
           APP_PATH=$(find bazel-bin -name "*.app" | head -n 1)
 
           echo "App path: $APP_PATH"
+
+          if [ -z "$APP_PATH" ]; then
+            echo "❌ .app not found"
+            exit 1
+          fi
 
           cp -R "$APP_PATH" Payload/
 
