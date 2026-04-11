@@ -1,0 +1,84 @@
+name: Build Telegram iOS IPA (No Codesign)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          brew install bazelisk
+          brew install yasm
+
+      - name: Prepare cache dir
+        run: mkdir -p $HOME/telegram-bazel-cache
+
+      - name: Generate minimal config
+        run: |
+          IDENTIFIER=$(openssl rand -hex 8)
+
+          cat > build-system/dev-config.json <<EOF
+          {
+            "bundle_id": "org.${IDENTIFIER}.Telegram",
+            "api_id": "YOUR_API_ID",
+            "api_hash": "YOUR_API_HASH",
+            "team_id": "",
+            "app_center_id": "",
+            "is_internal_build": true,
+            "is_appstore_build": false
+          }
+          EOF
+
+      - name: Generate Xcode Project (no codesign)
+        run: |
+          python3 build-system/Make/Make.py \
+            --cacheDir="$HOME/telegram-bazel-cache" \
+            generateProject \
+            --configurationPath=build-system/dev-config.json \
+            --disableProvisioningProfiles \
+            --overrideXcodeVersion
+
+      - name: Build app (Release arm64, no sign)
+        run: |
+          python3 build-system/Make/Make.py \
+            --cacheDir="$HOME/telegram-bazel-cache" \
+            build \
+            --configurationPath=build-system/dev-config.json \
+            --disableProvisioningProfiles \
+            --overrideXcodeVersion \
+            --buildNumber=100001 \
+            --configuration=release_arm64
+
+      - name: Package IPA (unsigned)
+        run: |
+          mkdir -p Payload
+
+          # 查找生成的 .app
+          APP_PATH=$(find bazel-bin -name "*.app" | head -n 1)
+
+          echo "App path: $APP_PATH"
+
+          cp -R "$APP_PATH" Payload/
+
+          zip -r Telegram.ipa Payload
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Telegram-IPA
+          path: Telegram.ipa
