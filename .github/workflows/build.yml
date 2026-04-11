@@ -13,21 +13,21 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      # ✅ 使用系统最新 Xcode（不再读 versions.json）
+      # ✅ 使用系统 Xcode（避免版本卡死）
       - name: Set active Xcode
         run: |
           set -x
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           xcodebuild -version
 
-      # ✅ 复制到 Telegram 需要的路径
+      # ✅ 准备源码目录
       - name: Prepare source
         run: |
           set -x
           sudo mkdir -p /Users/Shared
           rsync -a $GITHUB_WORKSPACE/ /Users/Shared/telegram-ios/
 
-      # ✅ 核心：彻底禁用所有检查 + 防止异常吞掉日志
+      # ✅ 关闭所有签名 & entitlement 检查
       - name: Patch build system
         run: |
           set -x
@@ -37,13 +37,13 @@ jobs:
           sed -i '' 's/check_provisioning_profile(/#check_provisioning_profile(/g' build-system/Make/Make.py
           sed -i '' 's/check_entitlements(/#check_entitlements(/g' build-system/Make/Make.py
 
-          # 禁止 raise 直接退出（关键！）
+          # 防止异常中断（关键）
           sed -i '' 's/raise Exception/print("BUILD WARNING:", e)/g' build-system/Make/Make.py
 
           # 删除 aps 检查
           sed -i '' '/aps-environment/d' build-system/Make/Make.py
 
-      # ✅ 构建（带完整日志）
+      # ✅ 构建（正确方式：用 bazelArguments）
       - name: Build Telegram
         run: |
           set -xe
@@ -67,23 +67,24 @@ jobs:
           python3 build-system/Make/ImportCertificates.py \
             --path build-system/fake-codesigning/certs
 
-          # 🚀 关键：开启 verbose + 强制输出
+          # 🚀 正确调试方式（无无效参数）
           PYTHONUNBUFFERED=1 python3 -u build-system/Make/Make.py \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
             --overrideXcodeVersion \
+            --bazelArguments="--verbose_failures" \
             build \
             --configurationPath="build-system/appstore-configuration.json" \
             --codesigningInformationPath=build-system/fake-codesigning \
             --configuration=release_arm64 \
             --buildNumber="$BUILD_NUMBER" \
-            --verbose 2>&1 | tee build.log
+            2>&1 | tee build.log
 
-      # ✅ 如果失败，打印日志（关键调试）
+      # ✅ 失败时输出完整日志（关键）
       - name: Show build log on failure
         if: failure()
         run: |
-          echo "====== BUILD LOG ======"
-          cat /Users/Shared/telegram-ios/build.log || true
+          echo "====== BUILD LOG (LAST 200 LINES) ======"
+          tail -n 200 /Users/Shared/telegram-ios/build.log || true
 
       # ✅ 收集产物
       - name: Collect artifacts
@@ -110,7 +111,7 @@ jobs:
 
           zip -r "$OUTPUT_PATH/Telegram.DSYMs.zip" build/DSYMs >/dev/null
 
-      # ✅ 发 Release
+      # ✅ 发布
       - name: Release
         if: success()
         uses: softprops/action-gh-release@v2
