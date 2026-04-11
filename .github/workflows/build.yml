@@ -1,14 +1,11 @@
 name: CI
 
 on:
-  push:
-    branches: [ master ]
-
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: macos-14
 
     steps:
       - uses: actions/checkout@v2
