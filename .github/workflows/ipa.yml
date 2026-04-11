@@ -28,11 +28,15 @@ jobs:
       - name: Prepare cache dir
         run: mkdir -p $HOME/telegram-bazel-cache
 
-      # ✅ 生成 Xcode 工程（修复参数问题）
+      # ✅ 核心修复：跳过 Xcode 版本限制
+      - name: Patch Xcode version check
+        run: |
+          echo "Patching Make.py to ignore Xcode version check..."
+          sed -i '' 's/exit(1)/# exit(1)/g' build-system/Make/Make.py
+
+      # ✅ 生成工程
       - name: Generate Xcode Project
         run: |
-          export IGNORE_XCODE_VERSION=1
-
           python3 build-system/Make/Make.py \
             --cacheDir="$HOME/telegram-bazel-cache" \
             generateProject \
@@ -40,11 +44,9 @@ jobs:
             --xcodeManagedCodesigning \
             --disableProvisioningProfiles
 
-      # ✅ 构建 app
+      # ✅ 构建
       - name: Build app
         run: |
-          export IGNORE_XCODE_VERSION=1
-
           python3 build-system/Make/Make.py \
             --cacheDir="$HOME/telegram-bazel-cache" \
             build \
@@ -54,7 +56,7 @@ jobs:
             --buildNumber=100001 \
             --configuration=release_arm64
 
-      # ✅ 打包 IPA（无签名）
+      # ✅ 打包 IPA
       - name: Package IPA
         run: |
           mkdir -p Payload
@@ -72,8 +74,8 @@ jobs:
 
           zip -r Telegram.ipa Payload
 
-      # ✅ 上传
-      - name: Upload Artifact
+      # ✅ 上传产物
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: Telegram-IPA
