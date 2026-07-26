@@ -58,20 +58,69 @@ jobs:
             --configuration=release_arm64 \
             --buildNumber="$BUILD_NUMBER"
 
-          # collect ipa
+          # collect ipa - 修复路径
           OUTPUT_PATH="build/artifacts"
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"
-          for f in bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa; do
-            cp "$f" $OUTPUT_PATH/
+          
+          # 尝试多个可能的路径
+          IPA_FOUND=0
+          for f in bazel-bin/Telegram/Telegram.ipa \
+                   bazel-out/applebin_ios-ios_arm64-opt-ST-*/bin/Telegram/Telegram.ipa \
+                   bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa; do
+            if [ -f "$f" ]; then
+              echo "Found IPA at: $f"
+              cp "$f" "$OUTPUT_PATH/"
+              IPA_FOUND=1
+              break
+            fi
           done
+          
+          if [ $IPA_FOUND -eq 0 ]; then
+            echo "ERROR: IPA file not found!"
+            echo "Searching in bazel-bin:"
+            ls -la bazel-bin/Telegram/ || echo "No bazel-bin/Telegram/"
+            echo "Searching in bazel-out:"
+            find bazel-out -name "*.ipa" 2>/dev/null || echo "No ipa found"
+            exit 1
+          fi
 
-          # collect dsym
+          # collect dsym - 修复路径
           mkdir -p build/DSYMs
-          for f in bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/*.dSYM; do
-            cp -R "$f" build/DSYMs/
-          done
+          
+          # 从 bazel-bin 收集 dSYM
+          if [ -d "bazel-bin/Telegram" ]; then
+            for f in bazel-bin/Telegram/*.dSYM; do
+              if [ -d "$f" ]; then
+                echo "Copying dSYM: $f"
+                cp -R "$f" build/DSYMs/
+              fi
+            done
+          fi
+          
+          # 如果 bazel-bin 没有，从 bazel-out 找
+          if [ -z "$(ls -A build/DSYMs 2>/dev/null)" ]; then
+            for f in bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/*.dSYM; do
+              if [ -d "$f" ]; then
+                echo "Copying dSYM from bazel-out: $f"
+                cp -R "$f" build/DSYMs/
+              fi
+            done
+          fi
+          
+          # 检查是否有 dSYM
+          if [ -z "$(ls -A build/DSYMs 2>/dev/null)" ]; then
+            echo "WARNING: No dSYM files found!"
+          else
+            echo "Found dSYM files:"
+            ls -la build/DSYMs/
+          fi
+          
           zip -r "./$OUTPUT_PATH/Telegram.DSYMs.zip" build/DSYMs 1>/dev/null
+          
+          echo "Build artifacts collected successfully!"
+          echo "Contents of $OUTPUT_PATH:"
+          ls -la "$OUTPUT_PATH/"
 
       - name: Create Release
         id: create_release
