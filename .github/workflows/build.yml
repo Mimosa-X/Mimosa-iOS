@@ -6,6 +6,10 @@ on:
 
   workflow_dispatch:
 
+# 关键：添加权限
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-15
