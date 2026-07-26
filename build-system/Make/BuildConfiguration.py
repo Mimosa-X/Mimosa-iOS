@@ -218,7 +218,7 @@ def resolve_aps_environment_from_directory(source_path, team_id, bundle_id):
                         print('Provisioning profile at {} does not include an aps-environment entitlement; continuing without push notifications'.format(file_path))
                         return ""
                     return profile_dict['Entitlements']['aps-environment']
-    return None
+    return ""
 
 
 def copy_certificates_from_directory(source_path, destination_path):
