@@ -1,5 +1,3 @@
-ENABLE_APP_GROUPS = False  # 免费账号设为 False
-
 load("@bazel_skylib//rules:common_settings.bzl",
     "bool_flag",
 )
@@ -537,27 +535,13 @@ aps_fragment = "" if telegram_aps_environment == "" else """
 <string>{telegram_aps_environment}</string>
 """.format(telegram_aps_environment=telegram_aps_environment)
 
-
-if ENABLE_APP_GROUPS:
-    app_groups_fragment = """
-        <key>com.apple.security.application-groups</key>
-        <array>
-            <string>group.{telegram_bundle_id}</string>
-        </array>
-        <key>application-identifier</key>
-        <string>{telegram_team_id}.{telegram_bundle_id}</string>
-    """.format(
-        telegram_team_id=telegram_team_id,
-        telegram_bundle_id=telegram_bundle_id
-    )
-else:
-    app_groups_fragment = """
-        <key>application-identifier</key>
-        <string>{telegram_team_id}.{telegram_bundle_id}</string>
-    """.format(
-        telegram_team_id=telegram_team_id,
-        telegram_bundle_id=telegram_bundle_id
-    )
+app_groups_fragment = """
+    <key>application-identifier</key>
+    <string>{telegram_team_id}.{telegram_bundle_id}</string>
+""".format(
+    telegram_team_id=telegram_team_id,
+    telegram_bundle_id=telegram_bundle_id
+)
 
 official_communication_notifications_fragment = """
 <key>com.apple.developer.usernotifications.communication</key>
