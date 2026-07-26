@@ -67,35 +67,83 @@ def cleanup_temp_keychain(keychain_name):
     run_executable_with_output('security', arguments=['delete-keychain', keychain_name], check_result=False)
 
 
-def get_signing_identity_from_p12(p12_path, p12_password=''):
-    """从 p12 中提取签名身份（Common Name）。"""
-    proc = subprocess.Popen(
-        ['openssl', 'pkcs12', '-in', p12_path, '-passin', 'pass:' + p12_password, '-nokeys', '-legacy'],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-    cert_pem, _ = proc.communicate()
+def _extract_pem_from_p12(p12_path, p12_password=''):
+    """尝试从 p12 中提取证书 PEM，先尝试 -legacy，失败则回退。"""
+    for legacy_flag in [['-legacy'], []]:
+        proc = subprocess.Popen(
+            ['openssl', 'pkcs12', '-in', p12_path, '-passin', 'pass:' + p12_password, '-nokeys'] + legacy_flag,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        cert_pem, stderr = proc.communicate()
+        if proc.returncode == 0 and b'BEGIN CERTIFICATE' in cert_pem:
+            return cert_pem
+        print('openssl pkcs12 attempt {} failed: {}'.format(legacy_flag, stderr.decode('utf-8', errors='ignore').strip()))
+    return None
 
-    proc2 = subprocess.Popen(
-        ['openssl', 'x509', '-noout', '-subject', '-nameopt', 'oneline,-esc_msb'],
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-    subject, _ = proc2.communicate(cert_pem)
-    subject = subject.decode('utf-8').strip()
 
+def _parse_cn_from_subject(subject):
+    """从 subject 字符串中解析 Common Name，兼容多种 openssl 输出格式。"""
+    # 格式1: subject= C = US, O = ..., CN = Apple Distribution: ... (TEAM), ...
     if 'CN = ' in subject:
-        cn = subject.split('CN = ')[-1].split(',')[0].strip()
-        return cn
+        cn = subject.split('CN = ')[-1]
+        # CN 中可能包含逗号，但 openssl 的 oneline 输出中逗号是分隔符
+        # 先尝试找到下一个 ", O ="、", C ="、", OU ="、", L ="、", ST =" 等常见 RDN
+        for sep in [', O = ', ', C = ', ', OU = ', ', ', L = ', ', ', ST = ']:
+            if sep in cn:
+                cn = cn.split(sep)[0]
+                break
+        return cn.strip()
+
+    # 格式2: /C=US/O=.../CN=Apple Distribution: ... (TEAM)/...
+    if '/CN=' in subject or ' CN=' in subject:
+        import re
+        match = re.search(r'[/\s]CN=([^/]+)', subject)
+        if match:
+            return match.group(1).strip()
+
+    return None
+
+
+def get_signing_identity_from_p12(p12_path, p12_password='', certs_dir=None):
+    """从 p12 中提取签名身份（Common Name），失败时尝试同目录下的 Public.cer。"""
+    cert_pem = _extract_pem_from_p12(p12_path, p12_password)
+    if cert_pem is not None:
+        proc2 = subprocess.Popen(
+            ['openssl', 'x509', '-noout', '-subject', '-nameopt', 'oneline,-esc_msb'],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        subject, _ = proc2.communicate(cert_pem)
+        subject = subject.decode('utf-8').strip()
+        print('Certificate subject from p12: {}'.format(subject))
+        cn = _parse_cn_from_subject(subject)
+        if cn:
+            return cn
+
+    # 回退：从同目录的 Public.cer 读取
+    if certs_dir is not None:
+        cer_path = os.path.join(certs_dir, 'Public.cer')
+        if os.path.exists(cer_path):
+            print('Falling back to Public.cer: {}'.format(cer_path))
+            proc = subprocess.Popen(
+                ['openssl', 'x509', '-in', cer_path, '-inform', 'DER', '-noout', '-subject', '-nameopt', 'oneline,-esc_msb'],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+            subject, _ = proc.communicate()
+            subject = subject.decode('utf-8').strip()
+            print('Certificate subject from cer: {}'.format(subject))
+            cn = _parse_cn_from_subject(subject)
+            if cn:
+                return cn
 
     return None
 
 
 def get_certificate_base64_from_p12(p12_path, p12_password=''):
     """从 p12 中提取证书并转为 base64。"""
-    proc = subprocess.Popen(
-        ['openssl', 'pkcs12', '-in', p12_path, '-passin', 'pass:' + p12_password, '-nokeys', '-legacy'],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-    cert_pem, _ = proc.communicate()
+    cert_pem = _extract_pem_from_p12(p12_path, p12_password)
+    if cert_pem is None:
+        print('Could not extract certificate from {}'.format(p12_path))
+        sys.exit(1)
 
     proc2 = subprocess.Popen(
         ['openssl', 'x509', '-outform', 'DER'],
@@ -178,7 +226,7 @@ def regenerate_profiles(source_path, destination_path, certs_path, new_bundle_id
 
     p12_password = ''  # fake-codesigning 使用空密码
     certificate_data = get_certificate_base64_from_p12(p12_path, p12_password)
-    signing_identity = get_signing_identity_from_p12(p12_path, p12_password)
+    signing_identity = get_signing_identity_from_p12(p12_path, p12_password, certs_dir=certs_path)
 
     if not signing_identity:
         print('Could not extract signing identity from {}'.format(p12_path))
