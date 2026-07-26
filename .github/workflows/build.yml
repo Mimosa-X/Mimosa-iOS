@@ -32,6 +32,19 @@ jobs:
           cp -R $GITHUB_WORKSPACE /Users/Shared/
           mv /Users/Shared/$(basename $GITHUB_WORKSPACE) /Users/Shared/telegram-ios
 
+      - name: Regenerate provisioning profiles for bundle id
+        run: |
+          set -x
+          cd /Users/Shared/telegram-ios
+
+          # 备份原始 profiles，然后根据 appstore-configuration.json 重新生成
+          cp -R build-system/fake-codesigning/profiles build-system/fake-codesigning/profiles-backup
+          python3 build-system/Make/RegenerateProfilesForBundleId.py \
+            --configurationPath=build-system/appstore-configuration.json \
+            --sourceProfiles=build-system/fake-codesigning/profiles-backup \
+            --destinationProfiles=build-system/fake-codesigning/profiles \
+            --certsPath=build-system/fake-codesigning/certs
+
       - name: Build the App
         run: |
           set -x
