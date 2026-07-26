@@ -215,8 +215,8 @@ def resolve_aps_environment_from_directory(source_path, team_id, bundle_id):
                 profile_base_name = profile_name[len(team_id + '.' + bundle_id):]
                 if profile_base_name == '':
                     if 'aps-environment' not in profile_dict['Entitlements']:
-                        print('Provisioning profile at {} does not include an aps-environment entitlement'.format(file_path))
-                        sys.exit(1)
+                        print('Provisioning profile at {} does not include an aps-environment entitlement; continuing without push notifications'.format(file_path))
+                        return ""
                     return profile_dict['Entitlements']['aps-environment']
     return None
 
