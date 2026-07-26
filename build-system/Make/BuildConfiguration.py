@@ -164,6 +164,7 @@ def copy_profiles_from_directory(source_path, destination_path, team_id, bundle_
         '.BroadcastUpload': 'BroadcastUpload'
     }
 
+    copied_files = []
     for file_name in os.listdir(source_path):
         file_path = source_path + '/' + file_name
         if os.path.isfile(file_path):
@@ -186,9 +187,20 @@ def copy_profiles_from_directory(source_path, destination_path, team_id, bundle_
             if profile_name.startswith(team_id + '.' + bundle_id):
                 profile_base_name = profile_name[len(team_id + '.' + bundle_id):]
                 if profile_base_name in profile_name_mapping:
-                    shutil.copyfile(file_path, destination_path + '/' + profile_name_mapping[profile_base_name] + '.mobileprovision')
+                    destination_file_path = destination_path + '/' + profile_name_mapping[profile_base_name] + '.mobileprovision'
+                    shutil.copyfile(file_path, destination_file_path)
+                    copied_files.append(destination_file_path)
                 else:
                     print('Warning: skipping provisioning profile at {} with bundle_id {} (base_name {})'.format(file_path, profile_name, profile_base_name))
+
+    # 如果没有找到匹配当前 bundle_id 的 profile，则按原文件名复制所有 profile。
+    # 这在越狱/自签名构建中很有用，因为 fake-codesigning 的 profile 可能还是旧 bundle_id。
+    if not copied_files:
+        print('Warning: no provisioning profiles matched team_id={} bundle_id={}; copying all profiles as-is'.format(team_id, bundle_id))
+        for file_name in os.listdir(source_path):
+            file_path = source_path + '/' + file_name
+            if os.path.isfile(file_path) and file_path.endswith('.mobileprovision'):
+                shutil.copyfile(file_path, destination_path + '/' + file_name)
 
 
 def resolve_aps_environment_from_directory(source_path, team_id, bundle_id):
