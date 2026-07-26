@@ -755,12 +755,12 @@ NSData *MTRsaEncryptPKCS1OAEP(id<EncryptionProvider> provider, NSString *key, NS
 
 static NSData *decrypt_TL_data(id<EncryptionProvider> provider, unsigned char buffer[256]) {
     NSString *keyString = @"-----BEGIN RSA PUBLIC KEY-----\n"
-"MIIBCgKCAQEAyr+18Rex2ohtVy8sroGPBwXD3DOoKCSpjDqYoXgCqB7ioln4eDCF\n"
-"fOBUlfXUEvM/fnKCpF46VkAftlb4VuPDeQSS/ZxZYEGqHaywlroVnXHIjgqoxiAd\n"
-"192xRGreuXIaUKmkwlM9JID9WS2jUsTpzQ91L8MEPLJ/4zrBwZua8W5fECwCCh2c\n"
-"9G5IzzBm+otMS/YKwmR1olzRCyEkyAEjXWqBI9Ftv5eG8m0VkBzOG655WIYdyV0H\n"
-"fDK/NWcvGqa0w/nriMD6mDjKOryamw0OP9QuYgMN0C9xMW9y8SmP4h92OAWodTYg\n"
-"Y1hZCxdv6cs5UnW9+PWvS+WIbkh+GaWYxwIDAQAB\n"
+"MIIBCgKCAQEAyRMdGePJxyDsWMRvVjnM7fRiZDc0YdTQicSK6GpfMsOYO/QI7kJh\n"
+"4885RFVLQqjVgc4fJ/y3tXk8Yk5Wms6rOeZ032MWDPBrzjo4AlAiG5alpvXdd9as\n"
+"aMYNj856mztLVSmg1sr35ISOvH784CvzlPYkS4eCSahfDwu4xUq+FQaUDZkVzb0l\n"
+"OyCB5PZGmVZ1aKiV6iti51tTFEwGnxc9CpFleBjpYGpKnwswFF8X6N7HCTrzshCl\n"
+"Brvg4nPddCF4WnFMIdi5uC0m//2+IyFEMrCc1u21wPuMGgC0qytj8wF4vPOCAr+x\n"
+"yePs7NNor3h+dorjduYvePy3gtmFpUIE2QIDAQAB\n"
 "-----END RSA PUBLIC KEY-----";
     
     id<MTRsaPublicKey> rsaKey = [provider parseRSAPublicKey:keyString];
