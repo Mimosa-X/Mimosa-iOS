@@ -83,21 +83,30 @@ def _extract_pem_from_p12(p12_path, p12_password=''):
 
 def _parse_cn_from_subject(subject):
     """从 subject 字符串中解析 Common Name，兼容多种 openssl 输出格式。"""
+    import re
+
     # 格式1: subject= C = US, O = ..., CN = Apple Distribution: ... (TEAM), ...
     if 'CN = ' in subject:
-        cn = subject.split('CN = ')[-1]
-        # CN 中可能包含逗号，但 openssl 的 oneline 输出中逗号是分隔符
-        # 先尝试找到下一个 ", O ="、", C ="、", OU ="、", L ="、", ST =" 等常见 RDN
-        for sep in [', O = ', ', C = ', ', OU = ', ', ', L = ', ', ', ST = ']:
-            if sep in cn:
-                cn = cn.split(sep)[0]
-                break
-        return cn.strip()
+        cn_part = subject.split('CN = ')[-1]
+        # oneline 格式中，RDN 之间用 ", X = " 分隔，X 通常是 C/O/OU/L/ST/CN 等
+        next_rdn_pos = len(cn_part)
+        rdn_prefixes = [
+            ", C = ",
+            ", O = ",
+            ", OU = ",
+            ", L = ",
+            ", ST = ",
+            ", CN = ",
+        ]
+        for rdn_prefix in rdn_prefixes:
+            pos = cn_part.find(rdn_prefix)
+            if pos != -1 and pos < next_rdn_pos:
+                next_rdn_pos = pos
+        return cn_part[:next_rdn_pos].strip()
 
     # 格式2: /C=US/O=.../CN=Apple Distribution: ... (TEAM)/...
-    if '/CN=' in subject or ' CN=' in subject:
-        import re
-        match = re.search(r'[/\s]CN=([^/]+)', subject)
+    if '/CN=' in subject:
+        match = re.search(r'/CN=([^/]+)', subject)
         if match:
             return match.group(1).strip()
 
