@@ -536,6 +536,10 @@ aps_fragment = "" if telegram_aps_environment == "" else """
 """.format(telegram_aps_environment=telegram_aps_environment)
 
 app_groups_fragment = """
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>group.{telegram_bundle_id}</string>
+    </array>
     <key>application-identifier</key>
     <string>{telegram_team_id}.{telegram_bundle_id}</string>
 """.format(
