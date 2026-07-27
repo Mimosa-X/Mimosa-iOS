@@ -529,7 +529,17 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         
         let baseAppBundleId = Bundle.main.bundleIdentifier!
         let appGroupName = "group.\(baseAppBundleId)"
-        let maybeAppGroupUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName)
+
+        // 原版：使用 App Group 共享容器
+        // let maybeAppGroupUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName)
+
+        // 修改后：App Group 不可用时回退到应用私有容器
+        // 说明：免费 Apple ID 自签名无法使用 App Group，回退后主应用可正常启动，但 Share/Widget/Watch/Siri 等扩展会失效。
+        // 恢复方法：取消注释上方原版代码，并注释掉下方这段回退逻辑。
+        var maybeAppGroupUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName)
+        if maybeAppGroupUrl == nil {
+            maybeAppGroupUrl = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        }
         
         let buildConfig = BuildConfig(baseAppBundleId: baseAppBundleId)
         self.buildConfig = buildConfig
