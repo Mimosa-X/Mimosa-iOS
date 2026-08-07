@@ -3,12 +3,12 @@
 我们欢迎所有开发者使用我们的API和源代码在我们的平台上创建应用程序。
 目前，我们对**所有开发者**有几点要求。
 
-#补丁
+# 补丁
 
-1.将submodules/MtProtoKit/Sources/MTDatacenterAuthMessageService.m#51-69和submodules/MtProtoKit/Sources/MTEncryption.m#758-763 修改为你自己的RSA PUBLIC KEY
-2.将submodules/TelegramCore/Sources/Network/Network.swift#530-535 修改你自己的服务器IP和服务端口
-3.可以在submodules/TelegramCore/Sources/Account/Account.swift#347修改默认连接DC (默认1)
-4.运行GitHub actions即可
+1. 将submodules/MtProtoKit/Sources/MTDatacenterAuthMessageService.m#51-69和submodules/MtProtoKit/Sources/MTEncryption.m#758-763 修改为你自己的RSA PUBLIC KEY。
+2. 将submodules/TelegramCore/Sources/Network/Network.swift#530-535 修改你自己的服务器IP和服务端口。
+3. 可以在submodules/TelegramCore/Sources/Account/Account.swift#347修改默认连接DC (默认1)。
+4. 运行GitHub actions即可。
 
 # 创建您的Telegram应用程序
 
